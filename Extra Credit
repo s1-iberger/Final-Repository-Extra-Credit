@@ -1,0 +1,94 @@
+Lab 3:
+To BLAST RNA polymerase II subunit B: blastp -db ../allprotein.fas -query NP_000929.1.fa -outfmt 0 -max_hsps 1 -out POLR2B.blastp.typical.out
+
+To request tabular output of BLAST:
+
+blastp -db ../allprotein.fas -query NP_000929.1.fa -outfmt "6 sseqid pident length mismatch gapopen evalue bitscore pident stitle" -max_hsps 1 -out POLR2B.blastp.detail.out
+
+To count hits in output: grep -c H.sapiens POLR2B.blastp.detail.out
+
+To filter out hits with e value > 1e -30: awk '{if ($6< 1e-30)print $1 }' POLR2B.blastp.detail.out > POLR2B.blastp.detail.filtered.out
+
+To count number of total hits: wc -l POLR2B.blastp.detail.filtered.out
+
+To determine number of paralogs:
+
+grep -o -E "^[A-Z].[a-z]+" POLR2B.blastp.detail.filtered.out | sort | uniq -c
+
+
+
+Lab 4:
+To obtain sequences in POLR2B BLAST output file: seqkit grep --pattern-file ~/lab03-s1-iberger/POLR2B/POLR2B.blastp.detail.filtered.out ~/lab03-s1-iberger/allprotein.fas | seqkit grep -v -p "carpio" > ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.fas
+
+To align sequences: muscle -align ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.fas -output ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas
+
+To view the alignment: alv -kli ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas | less -RS
+
+To only view alignments that are >50% match: alv -kli --majority ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas | less -RS
+
+To calculate width of alignment w/o gaps: alignbuddy -trm all ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas | alignbuddy -al
+
+To calculate width of alignment w/o invariant: alignbuddy -dinv 'ambig' ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas | alignbuddy -al
+
+To calculate avg percent identity: t_coffee -other_pg seq_reformat -in ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas -output sim
+
+alignbuddy -pi ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas | awk ' (NR>2) { for (i=2;i<=NF ;i++){ sum+=$i;num++} } END{ print(100*sum/num) } '
+
+
+
+Lab 5:
+To remopve any sequence with a duplicate label tag: sed 's/ /_/g' ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.al.fas | seqkit grep -v -r -p "dupelabel" > ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.fas
+
+To find maximum likelihood tree estimate: iqtree -s ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.fas -bb 1000 -nt 2
+
+To view unrooted tree: nw_display ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.fas.treefile
+
+To view graphical display: Rscript --vanilla ~/lab05-s1-iberger/plotUnrooted.R ~/lab05/s1-iberger/POLR2B/POLR2B.homologsf.al.fas.treefile ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.fas.treefile.pdf 0.4 15
+
+To reroot tree at midpoint: gotree reroot midpoint -i ~/lab05-s1-iberger/POLR2B/globins.homologsf.al.fas.treefile -o ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile
+
+To look at rooted tree in command line: nw_order -c n ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile | nw_display
+
+To create a graphic of tree: nw_order -c n ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile | nw_display -w 1000 -b 'opacity:0' -s > ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile.svg -
+
+To view as a cladogram: nw_order -c n ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile | nw_topology - | nw_display -s -w 1000 > ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.midCl.treefile.svg -
+
+To convert the svg cladogram file generated to a pdf: convert ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.midCl.treefile.svg ~/lab05-s1-iberger/POLR2B/POLR2B.homologsf.al.midCl.treefile.pdf
+
+
+
+Lab 6:
+To reconcile gene and species tree using NOTUNG:
+
+java -jar ~/tools/Notung-3.0_24-beta/Notung-3.0_24-beta.jar -s ~/lab05-s1-iberger/species.tre -g ~/lab06-s1-iberger/POLR2B/POLR2B.homologs.al.mid.treefile --reconcile --speciestag prefix --savepng --events --outputdir ~/lab06-s1-iberger/POLR2B/
+
+To convert to recphyloxml format for gene-within-species tree reconcilation:
+
+python2.7 ~/tools/recPhyloXML/python/NOTUNGtoRecPhyloXML.py -g ~/lab06-s1-iberger/POLR2B/POLR2B.homologs.al.mid.treefile.rec.ntg --include.species
+
+To create a graphic from recphyloxml file using thirdkind:
+
+thirdkind -Iie -D 40 -f ~/lab06-s1-iberger/POLR2B/POLR2B.homologs.al.mid.treefile.rec.ntg.xml -o ~/lab06-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile.rec.svg
+
+To convert thirdkind graphic to pdf:
+
+convert -density 150 ~/lab06-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile.rec.svg ~/lab06-s1-iberger/POLR2B/POLR2B.homologsf.al.mid.treefile.rec.pdf
+
+
+
+Lab 8:
+
+To make a copy of unaligned, raw sequences of our genes, and to get rid of any instance with an asterisk: sed 's/*//' ~/lab04-s1-iberger/POLR2B/POLR2B.homologs.fas > ~/lab08-s1-iberger/POLR2B/POLR2B.homologs.fas
+
+To run rps BLAST, which compares our query to PSSMs of NCBI's Conserved Domain Database: rpsblast -query ~/lab08-s1-iberger/POLR2B/POLR2B.homologs.fas -db ~/data/Pfam/Pfam -out ~/lab08-s1-iberger/POLR2B/POLR2B.rps-blast.out  -outfmt "6 qseqid qlen qstart qend evalue stitle" -evalue .0000000001
+
+Labels all PFAM domains on a phylogenetic tree and included predicted domains on tip of tree: Rscript  --vanilla ~/lab08-s1-iberger/plotTreeAndDomains.r ~/lab08-s1-iberger/POLR2B/POLR2B.homologsf.outgroupbeta.treefile ~/lab08-s1-iberger/POLR2B/POLR2B.rps-blast.out ~/lab08-s1-iberger/POLR2B/POLR2B.tree.rps.pdf
+
+To determine which proteins have no annotation: cut -f 1 ~/lab08-s1-iberger/POLR2B/POLR2B.rps-blast.out | sort | uniq -c
+
+To determine which Pfam domain annotation occurs most often: cut -f 6 ~/lab08-s1-iberger/POLR2B/POLR2B.rps-blast.out | sort | uniq -c
+
+To determine which protein has the longest annotated domain: awk '{a=$4-$3;print $1,'\t',a;}' ~/lab08-s1-iberger/POLR2B/POLR2B.rps-blast.out |  sort  -k2nr
+
+To extract just the e-values: cut -f 1,5 -d $'\t' ~/lab08-s1-iberger/POLR2B/POLR2B.rps-blast.out
+
